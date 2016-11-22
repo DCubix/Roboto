@@ -186,6 +186,31 @@ class Joke(Cmd):
 		bot.send(IRC_MSG_PRIVMSG, target, " :" + joke_text)
 
 
+class TellStack(Cmd):
+	def __init__(self):
+		super(TellStack, self).__init__()
+		self.string = "!tellstack"
+		self.description = "Print all messages stored in !tell."
+		self.arg_count = 0
+
+	def execute(self, sender, target, bot, cmd):
+		tell = []
+		try:
+			with open("tell.tf", "rb") as f:
+				d = pickle.load(f)
+				tell = d["data"]
+		except EOFError:
+			pass
+
+		if len(tell) > 0:
+			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ": ")
+			bot.send(IRC_MSG_PRIVMSG, target, " :%s | %s: %s" % ("Sender", "Date/Time", "Message"))
+			for user, sen, what, date in tell:
+				t = "%02d/%02d/%04d at %02d:%02d UTC" % (date.month, date.day, date.year, date.hour, date.minute)
+				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s | %s: %s" % (sen, t, what))
+		else:
+			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages.")
+
 class Bot(IRC):
 	def __init__(self, name="bot", info="", server="irc.freenode.net", port=6667):
 		super(Bot, self).__init__(server, port)
@@ -194,12 +219,14 @@ class Bot(IRC):
 		self.info = info
 		self.running = False
 		self.irc_command = ""
+		self.recon_attempts = 20
 
 		self.__commands = [
 			Calculator(),
 			Search(),
 			Tell(),
-			Joke()
+			Joke(),
+			TellStack()
 		]
 
 		self.start_messages = [
@@ -236,6 +263,8 @@ class Bot(IRC):
 		}
 
 		self.show_startup_greeting = True
+
+		self.__recon_cnt = 0
 
 	def register_command(self, cmd):
 		if cmd not in self.__commands:
@@ -276,7 +305,26 @@ class Bot(IRC):
 
 		self.running = True
 		while self.running:
-			text = self.listen(2048)
+			try:
+				text = self.listen(2048)
+			except socket.error:
+				if e.errno == socket.errno.ECONNRESET:
+					print("Connection Reset... Reconnecting...")
+					self.sock.close()
+					self.connect()
+					self.send(IRC_MSG_USER, name + " " + name + " " + name, " :" + self.info)
+					self.send(IRC_MSG_NICK, name, "")
+					self.send(IRC_MSG_PRIVMSG, "nickserv", " :iNOOPE")
+					self.join(channel)
+
+					self.__recon_cnt += 1
+					if self.__recon_cnt >= self.recon_attempts:
+						self.__recon_cnt = 0
+						self.quit()
+				else:
+					self.quit()
+					raise
+
 			print(text.strip(" \n\r"))
 
 			msg = self.__parse(text.strip(" \n\r"))
@@ -373,15 +421,22 @@ class Bot(IRC):
 					## - Start with a command
 					## - Have a command character !
 					for command in self.__commands:
-						if lmsg.startswith(command.string.lower()):
-							if command.is_valid(MESSAGE):
-								command.execute(SENDER, TARGET, self, MESSAGE)
-							else:
-								self.send(
-									IRC_MSG_PRIVMSG,
-									TARGET,
-									" :" + SENDER + ", malformed command!"
-								)
+						if command.string.lower() in lmsg:
+							wholecmd = lmsg[:lmsg.find(" ")+1].strip(" \n\r")
+							if " " not in lmsg:
+								wholecmd = lmsg
+
+							print("'%s'" % wholecmd)
+							if wholecmd == command.string:
+								print("ok")
+								if command.is_valid(MESSAGE):
+									command.execute(SENDER, TARGET, self, MESSAGE)
+								else:
+									self.send(
+										IRC_MSG_PRIVMSG,
+										TARGET,
+										" :" + SENDER + ", malformed command!"
+									)
 
 
 			time.sleep(1.0 / 24)

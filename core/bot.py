@@ -180,25 +180,28 @@ class Bot(IRC):
 
 				## Detect links
 				if lmsg.startswith("http"):
-					urls = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", MESSAGE)
-					for url in urls:
-						t = lxml.html.parse(url)
-						title = t.find(".//title").text
+					try:
+						urls = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", MESSAGE)
+						for url in urls:
+							t = lxml.html.parse(url)
+							title = t.find(".//title").text
 
-						slash_count = 0
-						for c in url:
-							if c == "/":
-								slash_count += 1
+							slash_count = 0
+							for c in url:
+								if c == "/":
+									slash_count += 1
 
-						surl = url
-						if slash_count > 2:
-							surl = "{0.scheme}://{0.netloc}/".format(urlsplit(url))
+							surl = url
+							if slash_count > 2:
+								surl = "{0.scheme}://{0.netloc}/".format(urlsplit(url))
 
-						self.send(
-							IRC_MSG_PRIVMSG,
-							TARGET,
-							" :" + title + " - " + surl
-						)
+							self.send(
+								IRC_MSG_PRIVMSG,
+								TARGET,
+								" :" + title + " - " + surl
+							)
+					except:
+						pass
 
 				## Builtin commands
 				if lmsg == "!cmdhelp":

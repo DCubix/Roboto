@@ -69,7 +69,7 @@ class Tell(Cmd):
 	def __init__(self):
 		super(Tell, self).__init__()
 		self.string = "!tell"
-		self.description = "Save message for an offline user. Usage: !tell username, something"
+		self.description = "Save message for an offline user. Usage: !tell username, \"something\""
 		self.arg_count = 2
 
 		self.tell = []
@@ -114,7 +114,7 @@ class Tell(Cmd):
 
 			t = "%02d %s, %02d %s %02d %s" % (h, htxt, m, mtxt, s, stxt)
 			if user == sender:
-				bot.send(IRC_MSG_PRIVMSG, target, " :%s, %s said %s ago: %s" % (sender, sen, t, what))
+				bot.send(IRC_MSG_PRIVMSG, target, " :%s, %s told you %s ago: %s" % (sender, sen, t, what))
 				del self.tell[i]
 			i += 1
 
@@ -143,7 +143,8 @@ class ShowTell(Cmd):
 		tell = [msg for msg in _tell if msg[0] == sender]
 		if len(tell) > 0:
 			msgtxt = "messages" if len(tell) > 1 else "message"
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are %d %s for you: " % (len(tell), msgtxt))
+			isare = "are" if len(tell) > 1 else "is"
+			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there %s %d %s for you: " % (isare, len(tell), msgtxt))
 
 			for user, sen, what, date in tell:
 				dt = datetime.now(timezone.utc)
@@ -157,7 +158,7 @@ class ShowTell(Cmd):
 				stxt = "seconds" if s > 1 or s == 0 else "seconds"
 
 				t = "%02d %s, %02d %s, %02d %s" % (h, htxt, m, mtxt, s, stxt)
-				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s: %s ago | by %s" % (t, what, sen))
+				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s ago: %s | by %s" % (t, what, sen))
 		else:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages for you.")
 
@@ -196,7 +197,6 @@ class TellStack(Cmd):
 
 		if len(tell) > 0:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ": ")
-			bot.send(IRC_MSG_PRIVMSG, target, " :%s | %s: %s" % ("Sender", "Date/Time", "Message"))
 			for user, sen, what, date in tell:
 				dt = datetime.now(timezone.utc)
 				c = dt - date
@@ -209,7 +209,7 @@ class TellStack(Cmd):
 				stxt = "seconds" if s > 1 or s == 0 else "seconds"
 
 				t = "%02d %s, %02d %s, %02d %s" % (h, htxt, m, mtxt, s, stxt)
-				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s: %s ago | by %s" % (t, what, sen))
+				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s ago: %s | by %s" % (t, what, sen))
 		else:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages.")
 
@@ -217,7 +217,7 @@ class Say(Cmd):
 	def __init__(self):
 		super(Say, self).__init__()
 		self.string = "!say"
-		self.description = "Say something in a channel."
+		self.description = "Say something in a channel. Usage: !say #channel, \"message\""
 		self.arg_count = 2
 
 	def execute(self, sender, target, bot, cmd):

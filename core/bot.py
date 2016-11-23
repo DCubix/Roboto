@@ -1,9 +1,8 @@
 from math import *
-from core.IRC import *
 from commands import *
+from urllib.parse import urlsplit
 
-import time
-import random
+import time, random, re, lxml.html
 
 
 class Bot(IRC):
@@ -22,7 +21,8 @@ class Bot(IRC):
 			Tell(),
 			Joke(),
 			TellStack(),
-			ShowTell()
+			ShowTell(),
+			Say()
 		]
 
 		self.start_messages = [
@@ -177,6 +177,28 @@ class Bot(IRC):
 						break
 
 				lmsg = MESSAGE.lower()
+
+				## Detect links
+				if lmsg.startswith("http"):
+					urls = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", MESSAGE)
+					for url in urls:
+						t = lxml.html.parse(url)
+						title = t.find(".//title").text
+
+						slash_count = 0
+						for c in url:
+							if c == "/":
+								slash_count += 1
+
+						surl = url
+						if slash_count > 2:
+							surl = "{0.scheme}://{0.netloc}/".format(urlsplit(url))
+
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET,
+							" :" + title + " - " + surl
+						)
 
 				## Builtin commands
 				if lmsg == "!cmdhelp":

@@ -212,3 +212,17 @@ class TellStack(Cmd):
 				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s: %s ago | by %s" % (t, what, sen))
 		else:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages.")
+
+class Say(Cmd):
+	def __init__(self):
+		super(Say, self).__init__()
+		self.string = "!say"
+		self.description = "Say something in a channel."
+		self.arg_count = 2
+
+	def execute(self, sender, target, bot, cmd):
+		_, args = Cmd.execute(self, sender, target, bot, cmd)
+		to = args[0]
+		msg = args[1]
+
+		bot.send(IRC_MSG_PRIVMSG, to, " :" + msg)

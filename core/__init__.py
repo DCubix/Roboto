@@ -1,5 +1,6 @@
 __all__ = [
 	"IRC",
-	"bot"
+	"bot",
+	"cmd"
 ]
 from core import *

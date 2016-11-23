@@ -1,215 +1,10 @@
 from math import *
 from core.IRC import *
-
-from pws import Bing
-from urllib import request
+from commands import *
 
 import time
 import random
-import os
-import pickle
 
-
-class Cmd:
-	def __init__(self):
-		self.string = ""
-		self.description = ""
-		self.arg_count = 0
-
-	def parse_command(self, cmd):
-		from pyparsing import (printables, originalTextFor, OneOrMore, quotedString, Word, delimitedList)
-		printables_less_comma = printables.replace(",", "")
-		content = originalTextFor(OneOrMore(quotedString | Word(printables_less_comma)))
-
-		i = cmd.find(" ")
-		if i != -1:
-			## Get command string
-			cmd_str = cmd[:i].lower().strip(" \n\r")
-
-			## Get arguments
-			args = []
-			_args = delimitedList(content, ",").parseString(cmd[i+1:].strip(" \n\r"))
-			__args = [arg.strip(" ,\n\r") for arg in _args]
-
-			for arg in __args:
-				narg = arg
-				try:
-					narg = float(arg)
-				except:
-					pass
-				if arg != cmd_str:
-					args.append(narg)
-		else:
-			cmd_str = cmd
-			args = []
-
-		print(cmd_str, args)
-		return (cmd_str, args)
-
-	def is_valid(self, cmd):
-		cmdstr, args = self.parse_command(cmd)
-		return len(args) == self.arg_count
-
-	def on_join(self, sender, target, bot):
-		pass
-
-	def on_quit(self, bot):
-		pass
-
-	def execute(self, sender, target, bot, cmd):
-		## !cmd arg1, arg2, arg3, arg4, arg5, ... !
-		return self.parse_command(cmd)
-
-
-class Calculator(Cmd):
-	def __init__(self):
-		super(Calculator, self).__init__()
-		self.string = "!calc"
-		self.description = "Simple calculator.  Usage: !calc 2+2, !calc sin(pi)."
-		self.arg_count = 1
-		self.ans = 0
-
-	def execute(self, sender, target, bot, cmd):
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
-		try:
-			ans = self.ans
-			ans = eval(str(args[0]))
-			res = str(args[0]) + " equals " + str(ans)
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", " + res)
-			self.ans = ans
-		except:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", sorry, that didn't work.")
-
-
-class Search(Cmd):
-	def __init__(self):
-		super(Search, self).__init__()
-		self.string = "!search"
-		self.description = "Search for something on the internet. Usage: !search something."
-		self.arg_count = 1
-
-	def is_valid(self, cmd):
-		cmdstr, args = self.parse_command(cmd)
-		return len(args) >= self.arg_count
-
-	def execute(self, sender, target, bot, cmd):
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
-		query = str(args[0])
-		acc = str(args[1]) if len(args) > 1 else ""
-		list_accessor = "[0]" if "[" not in acc and "]" not in acc else acc[acc.find("["):acc.find("]")+1]
-
-		try:
-			ret = Bing.search(query, 5, 1)
-			results = []
-			for res in ret["results"]:
-				link = res["link"]
-				link_text = res["link_text"].title()
-				results.append((link_text, link))
-
-			if len(results) > 0:
-				accs = "results" + list_accessor
-				items = eval(accs)
-				if isinstance(items, list):
-					bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ":")
-					for item in items:
-						bot.send(IRC_MSG_PRIVMSG, target, " :\t" + item[0] + " - " + item[1])
-				else:
-					bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", " + items[0] + " - " + items[1])
-			else:
-				bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ",  I didn't find anything about that :-/")
-		except:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", sorry, that didn't work.")
-
-
-class Tell(Cmd):
-	def __init__(self):
-		super(Tell, self).__init__()
-		self.string = "!tell"
-		self.description = "Save message for an offline user. Usage: !tell username, something"
-		self.arg_count = 2
-
-		self.tell = []
-
-		# load tell
-		if not os.path.exists("tell.tf"):
-			open("tell.tf", "wb").close()
-
-		try:
-			with open("tell.tf", "rb") as f:
-				d = pickle.load(f)
-				self.tell = d["data"]
-		except EOFError:
-			self.tell = []
-
-		print(self.tell)
-
-	def execute(self, sender, target, bot, cmd):
-		from datetime import datetime, timezone
-		dt = datetime.now(timezone.utc)  # UTC time
-
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
-		user = str(args[0])
-		what = str(args[1])
-
-		self.tell.append((user, sender, what, dt))
-		bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", Ok!")
-
-	def on_join(self, sender, target, bot):
-		i = 0
-		for user, sen, what, date in self.tell:
-			t = "%02d/%02d/%04d at %02d:%02d UTC" % (date.month, date.day, date.year, date.hour, date.minute)
-
-			if user == sender:
-				bot.send(IRC_MSG_PRIVMSG, target, " :%s, %s said, on %s: %s" % (sender, sen, t, what))
-				del self.tell[i]
-			i += 1
-
-	def on_quit(self, bot):
-		with open("tell.tf", "wb") as f:
-			d = {"data": self.tell}
-			pickle.dump(d, f)
-
-
-class Joke(Cmd):
-	def __init__(self):
-		super(Joke, self).__init__()
-		self.string = "!joke"
-		self.description = "Tells a random joke."
-		self.arg_count = 0
-
-	def execute(self, sender, target, bot, cmd):
-		import json
-		response = request.urlopen("http://tambal.azurewebsites.net/joke/random")
-		joke_json = json.loads(response.read().decode("utf-8"))
-		joke_text = joke_json["joke"]
-
-		bot.send(IRC_MSG_PRIVMSG, target, " :" + joke_text)
-
-
-class TellStack(Cmd):
-	def __init__(self):
-		super(TellStack, self).__init__()
-		self.string = "!tellstack"
-		self.description = "Print all messages stored in !tell."
-		self.arg_count = 0
-
-	def execute(self, sender, target, bot, cmd):
-		tell = []
-		try:
-			with open("tell.tf", "rb") as f:
-				d = pickle.load(f)
-				tell = d["data"]
-		except EOFError:
-			pass
-
-		if len(tell) > 0:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ": ")
-			bot.send(IRC_MSG_PRIVMSG, target, " :%s | %s: %s" % ("Sender", "Date/Time", "Message"))
-			for user, sen, what, date in tell:
-				t = "%02d/%02d/%04d at %02d:%02d UTC" % (date.month, date.day, date.year, date.hour, date.minute)
-				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s | %s: %s" % (sen, t, what))
-		else:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages.")
 
 class Bot(IRC):
 	def __init__(self, name="bot", info="", server="irc.freenode.net", port=6667):
@@ -226,7 +21,8 @@ class Bot(IRC):
 			Search(),
 			Tell(),
 			Joke(),
-			TellStack()
+			TellStack(),
+			ShowTell()
 		]
 
 		self.start_messages = [
@@ -416,7 +212,7 @@ class Bot(IRC):
 					if SENDER == "TwisterGE":
 						self.running = False
 				else:
-					## Checks if MESSAGE is a command
+					## Checks if MESSAGE is a !command
 					## It must:
 					## - Start with a command
 					## - Have a command character !

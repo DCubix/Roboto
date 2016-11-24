@@ -1,8 +1,9 @@
 from math import *
 from commands import *
-from urllib.parse import urlsplit
+# from urllib.parse import urlsplit
 
-import time, random, re, lxml.html
+import time, random
+#, re, lxml.html
 
 
 class Bot(IRC):
@@ -55,7 +56,8 @@ class Bot(IRC):
 			"how are you": ["I'm fine, thanks!", "All gears working!", "Not in the mood for bad mood!"],
 			"who are you": ["I'm " + name + "! The UPBGE's Help Bot!", "I'm the UPBGE's Help Bot!"],
 			"what can you do": ["I can do a lot of things. Inform new users, tell jokes, calculate big numbers, just type !cmdhelp"],
-			"why did the chicken cross the road": ["To get to the other side.", "For fun.", "Out of common sense.", "You tell me.", "The chicken wanted to expose the myth of the road..."]
+			"why did the chicken cross the road": ["To get to the other side.", "For fun.", "Out of common sense.", "You tell me.", "The chicken wanted to expose the myth of the road..."],
+			"what are you": ["I'm " + name + "! The UPBGE's Help Bot!", "I'm the UPBGE's Help Bot!", "I am a robot *beep* *boop*"]
 		}
 
 		self.show_startup_greeting = True
@@ -178,30 +180,30 @@ class Bot(IRC):
 
 				lmsg = MESSAGE.lower()
 
-				## Detect links
-				if lmsg.startswith("http"):
-					try:
-						urls = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", MESSAGE)
-						for url in urls:
-							t = lxml.html.parse(url)
-							title = t.find(".//title").text
-
-							slash_count = 0
-							for c in url:
-								if c == "/":
-									slash_count += 1
-
-							surl = url
-							if slash_count > 2:
-								surl = "{0.scheme}://{0.netloc}/".format(urlsplit(url))
-
-							self.send(
-								IRC_MSG_PRIVMSG,
-								TARGET,
-								" :" + title + " - " + surl
-							)
-					except:
-						pass
+				## Detect links ANNOYING! KILL IT!
+				# if lmsg.startswith("http"):
+				# 	try:
+				# 		urls = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", MESSAGE)
+				# 		for url in urls:
+				# 			t = lxml.html.parse(url)
+				# 			title = t.find(".//title").text
+				#
+				# 			slash_count = 0
+				# 			for c in url:
+				# 				if c == "/":
+				# 					slash_count += 1
+				#
+				# 			surl = url
+				# 			if slash_count > 2:
+				# 				surl = "{0.scheme}://{0.netloc}/".format(urlsplit(url))
+				#
+				# 			self.send(
+				# 				IRC_MSG_PRIVMSG,
+				# 				TARGET,
+				# 				" :" + title + " - " + surl
+				# 			)
+				# 	except:
+				# 		pass
 
 				## Builtin commands
 				if lmsg == "!cmdhelp":

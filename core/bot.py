@@ -99,7 +99,7 @@ class Bot(IRC):
 		if self.show_startup_greeting:
 			_msg = random.choice(self.start_messages)
 			if self.showUpdateMessage:
-				_msg += " " + self.update_message + ".".join(self.version) + "!"
+				_msg += " " + self.update_message + ".".join([str(i) for i in self.version]) + "!"
 				self.showUpdateMessage = False
 			self.send(IRC_MSG_PRIVMSG, channel, " :" + _msg)
 

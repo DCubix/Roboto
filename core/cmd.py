@@ -1,4 +1,17 @@
-from pyparsing import (printables, originalTextFor, OneOrMore, quotedString, Word, delimitedList)
+class StringReader:
+	def __init__(self, string):
+		self.string = string
+		self.length = len(string) if string is not None else 0
+		self.__pos = 0
+	
+	def eol(self):
+		return self.__pos >= self.length
+	
+	def read(self):
+		if self.eol(): return None
+		self.__pos += 1
+		return self.string[self.__pos-1]
+
 
 class Cmd:
 	def __init__(self):
@@ -7,36 +20,62 @@ class Cmd:
 		self.arg_count = 0
 
 	def parse_command(self, cmd):
-		printables_less_comma = printables.replace(",", "")
-		content = originalTextFor(OneOrMore(quotedString | Word(printables_less_comma)))
-
 		i = cmd.find(" ")
+		
 		if i != -1:
 			## Get command string
 			cmd_str = cmd[:i].lower().strip(" \n\r")
+			_args = cmd[i:].strip(" \n\r")
 
-			## Get arguments
+			## Get the arguments
+			sr = StringReader(_args)
 			args = []
-			_args = delimitedList(content, ",").parseString(cmd[i+1:].strip(" \n\r"))
-			__args = [arg.strip(" ,\n\r") for arg in _args]
-
-			for arg in __args:
-				narg = arg
-				try:
-					narg = float(arg)
-				except:
-					pass
-				if arg != cmd_str:
-					args.append(narg)
+			
+			char = sr.read()
+			while not sr.eol():
+				if char.isspace():
+					char = sr.read()
+				elif char == ',':
+					char = sr.read()
+				elif char.isalpha() or char == '"' or char == "'": # read strings
+					arg = ""
+					while not sr.eol() and char != ',':
+						arg += char
+						char = sr.read()
+					if sr.eol():
+						arg += char
+						
+					args.append(arg.strip(" '\""))
+				elif char.isdigit():
+					arg = ""
+					isnum = True
+					isfloat = False
+					while not sr.eol() and char != ',':
+						arg += char
+						char = sr.read()
+						if char == '.':
+							isfloat = True
+						if not char.isdigit():
+							isnum = False
+					if sr.eol():
+						arg += char
+						
+					if isnum:
+						if isfloat:
+							args.append(float(arg))
+						else:
+							args.append(int(arg))
+					else:
+						args.append(arg)
 		else:
-			cmd_str = cmd
+			cmd_str = cmd.strip(" \n\r")
 			args = []
 
 		print(cmd_str, args)
 		return (cmd_str, args)
 
 	def is_valid(self, cmd):
-		cmdstr, args = self.parse_command(cmd)
+		_, args = self.parse_command(cmd)
 		return len(args) == self.arg_count
 
 	def on_join(self, sender, target, bot):

@@ -1,6 +1,5 @@
 from math import *
 from commands import *
-# from urllib.parse import urlsplit
 
 import time, random
 #, re, lxml.html
@@ -13,27 +12,26 @@ class Bot(IRC):
 		self.name = name
 		self.info = info
 		self.running = False
+		self.showUpdateMessage = True
 		self.irc_command = ""
 		self.recon_attempts = 20
 
 		self.__commands = [
 			Calculator(),
-			Search(),
 			Tell(),
 			Joke(),
 			TellStack(),
-			ShowTell(),
-			Say()
+			ShowTell()
 		]
+
+		self.version = [1, 5]
+		self.update_message = name + " has been updated to version "
 
 		self.start_messages = [
 			"Hello everyone!",
 			"Hello!",
 			"Hi!",
 			"Olá!",
-			"Привет!",
-			"Привіт!",
-			"Здрасти!",
 			"Salut!",
 			"Bonjour à tous!"
 		]
@@ -99,7 +97,11 @@ class Bot(IRC):
 		self.join(channel)
 
 		if self.show_startup_greeting:
-			self.send(IRC_MSG_PRIVMSG, channel, " :" + random.choice(self.start_messages))
+			_msg = random.choice(self.start_messages)
+			if self.showUpdateMessage:
+				_msg += " " + self.update_message + ".".join(self.version) + "!"
+				self.showUpdateMessage = False
+			self.send(IRC_MSG_PRIVMSG, channel, " :" + _msg)
 
 		self.running = True
 		while self.running:
@@ -180,31 +182,6 @@ class Bot(IRC):
 
 				lmsg = MESSAGE.lower()
 
-				## Detect links ANNOYING! KILL IT!
-				# if lmsg.startswith("http"):
-				# 	try:
-				# 		urls = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", MESSAGE)
-				# 		for url in urls:
-				# 			t = lxml.html.parse(url)
-				# 			title = t.find(".//title").text
-				#
-				# 			slash_count = 0
-				# 			for c in url:
-				# 				if c == "/":
-				# 					slash_count += 1
-				#
-				# 			surl = url
-				# 			if slash_count > 2:
-				# 				surl = "{0.scheme}://{0.netloc}/".format(urlsplit(url))
-				#
-				# 			self.send(
-				# 				IRC_MSG_PRIVMSG,
-				# 				TARGET,
-				# 				" :" + title + " - " + surl
-				# 			)
-				# 	except:
-				# 		pass
-
 				## Builtin commands
 				if lmsg == "!cmdhelp":
 					self.send(
@@ -258,10 +235,10 @@ class Bot(IRC):
 									self.send(
 										IRC_MSG_PRIVMSG,
 										TARGET,
-										" :" + SENDER + ", malformed command!"
+										" :" + SENDER + ", invalid command!"
 									)
 
 
-			time.sleep(1.0 / 24)
+			time.sleep(1.0 / 30)
 
 		self.quit()

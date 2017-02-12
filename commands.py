@@ -1,7 +1,8 @@
 from core.IRC import *
-from pws import Bing
+from math import *
 from urllib import request
 from core.cmd import Cmd
+from datetime import datetime, timezone
 import os, pickle
 
 
@@ -18,52 +19,11 @@ class Calculator(Cmd):
 		try:
 			ans = self.ans
 			ans = eval(str(args[0]))
-			res = str(args[0]) + " equals " + str(ans)
+			res = str(args[0]) + " is equal to " + str(ans)
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", " + res)
 			self.ans = ans
 		except:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", sorry, that didn't work.")
-
-
-class Search(Cmd):
-	def __init__(self):
-		super(Search, self).__init__()
-		self.string = "!search"
-		self.description = "Search for something on the internet. Usage: !search something."
-		self.arg_count = 1
-
-	def is_valid(self, cmd):
-		cmdstr, args = self.parse_command(cmd)
-		return len(args) >= self.arg_count
-
-	def execute(self, sender, target, bot, cmd):
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
-		query = str(args[0])
-		acc = str(args[1]) if len(args) > 1 else ""
-		list_accessor = "[0]" if "[" not in acc and "]" not in acc else acc[acc.find("["):acc.find("]")+1]
-
-		try:
-			ret = Bing.search(query, 5, 1)
-			results = []
-			for res in ret["results"]:
-				link = res["link"]
-				link_text = res["link_text"].title()
-				results.append((link_text, link))
-
-			if len(results) > 0:
-				accs = "results" + list_accessor
-				items = eval(accs)
-				if isinstance(items, list):
-					bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ":")
-					for item in items:
-						bot.send(IRC_MSG_PRIVMSG, target, " :\t" + item[0] + " - " + item[1])
-				else:
-					bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", " + items[0] + " - " + items[1])
-			else:
-				bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ",  I didn't find anything about that :-/")
-		except:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", sorry, that didn't work.")
-
 
 class Tell(Cmd):
 	def __init__(self):
@@ -75,33 +35,31 @@ class Tell(Cmd):
 		self.tell = []
 
 		# load tell
-		if not os.path.exists("tell.tf"):
-			open("tell.tf", "wb").close()
+		if not os.path.exists("tell.dat"):
+			open("tell.dat", "wb").close()
 
 		try:
-			with open("tell.tf", "rb") as f:
+			with open("tell.dat", "rb") as f:
 				d = pickle.load(f)
 				self.tell = d["data"]
-		except EOFError:
+		except:
 			self.tell = []
 
 		print(self.tell)
 
 	def execute(self, sender, target, bot, cmd):
-		from datetime import datetime, timezone
 		dt = datetime.now(timezone.utc)  # UTC time
 
 		_, args = Cmd.execute(self, sender, target, bot, cmd)
 		user = str(args[0])
 		what = str(args[1])
 
-		self.tell.append((user, sender, what, dt))
+		self.tell.append([user, sender, what, dt, False])
 		bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", Ok!")
 
 	def on_join(self, sender, target, bot):
-		from datetime import datetime, timezone
-		i = 0
-		for user, sen, what, date in self.tell:
+		for i, v in enumerate(self.tell):
+			user, sen, what, date, ok = v
 			dt = datetime.now(timezone.utc)
 			c = dt - date
 
@@ -113,13 +71,17 @@ class Tell(Cmd):
 			stxt = "seconds" if s > 1 or s == 0 else "seconds"
 
 			t = "%02d %s, %02d %s %02d %s" % (h, htxt, m, mtxt, s, stxt)
-			if user == sender:
-				bot.send(IRC_MSG_PRIVMSG, target, " :%s, %s told you %s ago: %s" % (sender, sen, t, what))
-				del self.tell[i]
-			i += 1
+			if user == sender and not ok:
+				_who = sen if sen != sender else "you" 
+				bot.send(IRC_MSG_PRIVMSG, target, " :%s, %s said %s ago: %s" % (sender, _who, t, what))
+				self.tell[i][4] = True
 
+		for i, v in enumerate(self.tell):
+			if v[4]:
+				del self.tell[i]
+			
 	def on_quit(self, bot):
-		with open("tell.tf", "wb") as f:
+		with open("tell.dat", "wb") as f:
 			d = {"data": self.tell}
 			pickle.dump(d, f)
 
@@ -131,13 +93,12 @@ class ShowTell(Cmd):
 		self.arg_count = 0
 
 	def execute(self, sender, target, bot, cmd):
-		from datetime import datetime, timezone
 		_tell = []
 		try:
-			with open("tell.tf", "rb") as f:
+			with open("tell.dat", "rb") as f:
 				d = pickle.load(f)
 				_tell = d["data"]
-		except EOFError:
+		except:
 			pass
 
 		tell = [msg for msg in _tell if msg[0] == sender]
@@ -146,7 +107,7 @@ class ShowTell(Cmd):
 			isare = "are" if len(tell) > 1 else "is"
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there %s %d %s for you: " % (isare, len(tell), msgtxt))
 
-			for user, sen, what, date in tell:
+			for _, sen, what, date, _ in tell:
 				dt = datetime.now(timezone.utc)
 				c = dt - date
 
@@ -186,18 +147,17 @@ class TellStack(Cmd):
 		self.arg_count = 0
 
 	def execute(self, sender, target, bot, cmd):
-		from datetime import datetime, timezone
 		tell = []
 		try:
-			with open("tell.tf", "rb") as f:
+			with open("tell.dat", "rb") as f:
 				d = pickle.load(f)
 				tell = d["data"]
-		except EOFError:
+		except:
 			pass
 
 		if len(tell) > 0:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ": ")
-			for user, sen, what, date in tell:
+			for _, sen, what, date, _ in tell:
 				dt = datetime.now(timezone.utc)
 				c = dt - date
 
@@ -212,17 +172,3 @@ class TellStack(Cmd):
 				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s ago: %s | by %s" % (t, what, sen))
 		else:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages.")
-
-class Say(Cmd):
-	def __init__(self):
-		super(Say, self).__init__()
-		self.string = "!say"
-		self.description = "Say something in a channel. Usage: !say #channel, \"message\""
-		self.arg_count = 2
-
-	def execute(self, sender, target, bot, cmd):
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
-		to = args[0]
-		msg = args[1]
-
-		bot.send(IRC_MSG_PRIVMSG, to, " :" + msg)

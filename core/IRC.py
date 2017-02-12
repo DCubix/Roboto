@@ -27,8 +27,8 @@ class IRC:
 		self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.__sock.connect((self.server, self.port))
 
-	def listen(self, bytes):
-		return self.__sock.recv(bytes).decode("utf-8")
+	def listen(self, byte_count):
+		return self.__sock.recv(byte_count).decode("utf-8")
 
 	def send(self, msgtype, to, message=""):
 		tsend = (msgtype + " " + to + message + "\r\n").encode("utf-8")

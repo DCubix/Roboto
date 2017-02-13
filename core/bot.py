@@ -12,7 +12,6 @@ class Bot(IRC):
 		self.name = name
 		self.info = info
 		self.running = False
-		self.showUpdateMessage = True
 		self.irc_command = ""
 		self.recon_attempts = 20
 
@@ -24,8 +23,7 @@ class Bot(IRC):
 			ShowTell()
 		]
 
-		self.version = [1, 5]
-		self.update_message = name + " has been updated to version "
+		self.version = [1, 6]
 
 		self.start_messages = [
 			"Hello everyone!",
@@ -98,9 +96,6 @@ class Bot(IRC):
 
 		if self.show_startup_greeting:
 			_msg = random.choice(self.start_messages)
-			if self.showUpdateMessage:
-				_msg += " " + self.update_message + ".".join([str(i) for i in self.version]) + "!"
-				self.showUpdateMessage = False
 			self.send(IRC_MSG_PRIVMSG, channel, " :" + _msg)
 
 		self.running = True
@@ -211,6 +206,12 @@ class Bot(IRC):
 						IRC_MSG_PRIVMSG,
 						TARGET,
 						" :" + SENDER + ", " + self.help_message
+					)
+				elif lmsg == "!version":
+					self.send(
+						IRC_MSG_PRIVMSG,
+						TARGET,
+						" :" + name + " is in version " + ".".join([str(i) for i in self.version])
 					)
 				elif lmsg == "!quit":
 					if SENDER == "TwisterGE":

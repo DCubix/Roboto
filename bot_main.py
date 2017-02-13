@@ -8,5 +8,5 @@ try:
 except KeyboardInterrupt:
 	bot.quit()
 	sys.exit(0)
-# c = Cmd()
-# c.parse_command("!tell, user, \"Hello\"")
+c = Cmd()
+# c.parse_command("!tell user, \"Hello, this is a quoted string\", this is what hapens, in this")

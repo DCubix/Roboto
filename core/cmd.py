@@ -37,11 +37,23 @@ class Cmd:
 					char = sr.read()
 				elif char == ',':
 					char = sr.read()
-				elif char.isalpha() or char == '"' or char == "'": # read strings
+				elif char.isalpha(): # read unquoted strings
 					arg = ""
 					while not sr.eol() and char != ',':
 						arg += char
 						char = sr.read()
+					if sr.eol():
+						arg += char
+						
+					args.append(arg)
+				elif char in ["'", "\""]: # read quoted strings
+					arg = ""
+					arg += char
+					char = sr.read()
+					while not sr.eol() and char not in ["'", "\""]:
+						arg += char
+						char = sr.read()
+					char = sr.read()
 					if sr.eol():
 						arg += char
 						

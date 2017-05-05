@@ -106,7 +106,13 @@ class Bot(IRC):
 		command = args.pop(0)
 		return prefix, command, args
 
+	def __save_user_db(self):
+		with open("userdb.dat", "wb") as f:
+			d = { "db": self.user_database }
+			pickle.dump(d, f)
+
 	def quit(self):
+		self.__save_user_db()
 		print("Quit!")
 		for command in self.__commands:
 			command.on_quit(self)
@@ -174,11 +180,6 @@ class Bot(IRC):
 							IRC_MSG_PRIVMSG,
 							TARGET, " :Welcome, " + SENDER + "!"
 						)
-						
-						# And backup the data!
-						with open("userdb.dat", "wb") as f:
-							d = { "db": self.user_database }
-							pickle.dump(d, f)
 					else:
 						self.send(
 							IRC_MSG_PRIVMSG,
@@ -295,11 +296,6 @@ class Bot(IRC):
 							IRC_MSG_PRIVMSG,
 							TARGET, " :You are now registered, " + SENDER + "!"
 						)
-						
-						# And backup the data!
-						with open("userdb.dat", "wb") as f:
-							d = { "db": self.user_database }
-							pickle.dump(d, f)
 					else:
 						self.send(
 							IRC_MSG_PRIVMSG,
@@ -317,14 +313,16 @@ class Bot(IRC):
 								rstr = r"\b(%s)\b" % "|".join(users)
 								mobj = re.search(rstr, MESSAGE)
 								if mobj:
-									user_name = mobj.group(0)
-									user = self.get_user(user_name)
-									if user:
-										user.reputation += 1
-										self.send(
-											IRC_MSG_PRIVMSG,
-											TARGET, " :%s earned reputation points!" % user_name
-										)
+									for user_name in mobj.groups():
+										if user_name == SENDER:
+											continue # Can't give reputation to yourself
+										user = self.get_user(user_name)
+										if user:
+											user.reputation += 1
+											self.send(
+												IRC_MSG_PRIVMSG,
+												TARGET, " :%s earned reputation points!" % user_name
+											)
 							break
 					
 					## Checks if MESSAGE is a !command

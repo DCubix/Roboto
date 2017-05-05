@@ -1,12 +1,12 @@
 from core.IRC import *
 from math import *
 from urllib import request
-from core.cmd import Cmd
+from core.command import Command, parse_command
 from datetime import datetime, timezone
 import os, pickle
 
 
-class Calculator(Cmd):
+class Calculator(Command):
 	def __init__(self):
 		super(Calculator, self).__init__()
 		self.string = "!calc"
@@ -14,8 +14,8 @@ class Calculator(Cmd):
 		self.arg_count = 1
 		self.ans = 0
 
-	def execute(self, sender, target, bot, cmd):
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
+	def on_call(self, sender, target, bot, cmd):
+		_, args = parse_command(cmd)
 		try:
 			ans = self.ans
 			ans = eval(str(args[0]))
@@ -25,7 +25,7 @@ class Calculator(Cmd):
 		except:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", sorry, that didn't work.")
 
-class Tell(Cmd):
+class Tell(Command):
 	def __init__(self):
 		super(Tell, self).__init__()
 		self.string = "!tell"
@@ -47,10 +47,10 @@ class Tell(Cmd):
 
 		print(self.tell)
 
-	def execute(self, sender, target, bot, cmd):
+	def on_call(self, sender, target, bot, cmd):
 		dt = datetime.now(timezone.utc)  # UTC time
 
-		_, args = Cmd.execute(self, sender, target, bot, cmd)
+		_, args = parse_command(cmd)
 		user = str(args[0])
 		what = str(args[1])
 
@@ -85,14 +85,14 @@ class Tell(Cmd):
 			d = {"data": self.tell}
 			pickle.dump(d, f)
 
-class ShowTell(Cmd):
+class ShowTell(Command):
 	def __init__(self):
 		super(ShowTell, self).__init__()
 		self.string = "!showtell"
-		self.description = "Shows messages stored for you."
+		self.description = "Shows the messages stored for you."
 		self.arg_count = 0
 
-	def execute(self, sender, target, bot, cmd):
+	def on_call(self, sender, target, bot, cmd):
 		_tell = []
 		try:
 			with open("tell.dat", "rb") as f:
@@ -123,14 +123,14 @@ class ShowTell(Cmd):
 		else:
 			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages for you.")
 
-class Joke(Cmd):
+class Joke(Command):
 	def __init__(self):
 		super(Joke, self).__init__()
 		self.string = "!joke"
 		self.description = "Tells a random joke."
 		self.arg_count = 0
 
-	def execute(self, sender, target, bot, cmd):
+	def on_call(self, sender, target, bot, cmd):
 		import json
 		response = request.urlopen("http://tambal.azurewebsites.net/joke/random")
 		joke_json = json.loads(response.read().decode("utf-8"))
@@ -138,37 +138,3 @@ class Joke(Cmd):
 
 		bot.send(IRC_MSG_PRIVMSG, target, " :" + joke_text)
 
-
-class TellStack(Cmd):
-	def __init__(self):
-		super(TellStack, self).__init__()
-		self.string = "!tellstack"
-		self.description = "Print all messages stored in !tell."
-		self.arg_count = 0
-
-	def execute(self, sender, target, bot, cmd):
-		tell = []
-		try:
-			with open("tell.dat", "rb") as f:
-				d = pickle.load(f)
-				tell = d["data"]
-		except:
-			pass
-
-		if len(tell) > 0:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ": ")
-			for _, sen, what, date, _ in tell:
-				dt = datetime.now(timezone.utc)
-				c = dt - date
-
-				m, s = divmod(c.seconds, 60)
-				h, m = divmod(m, 60)
-
-				htxt = "hours" if h > 1 or h == 0 else "hour"
-				mtxt = "minutes" if m > 1 or m == 0 else "minute"
-				stxt = "seconds" if s > 1 or s == 0 else "seconds"
-
-				t = "%02d %s, %02d %s, %02d %s" % (h, htxt, m, mtxt, s, stxt)
-				bot.send(IRC_MSG_PRIVMSG, target, " :\t%s ago: %s | by %s" % (t, what, sen))
-		else:
-			bot.send(IRC_MSG_PRIVMSG, target, " :" + sender + ", there are no messages.")

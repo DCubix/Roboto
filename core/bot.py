@@ -1,8 +1,12 @@
 from math import *
 from commands import *
+import time, random, re
 
-import time, random
-#, re, lxml.html
+
+class User:
+	def __init__(self, name):
+		self.name = name
+		self.reputation = 0
 
 
 class Bot(IRC):
@@ -19,11 +23,10 @@ class Bot(IRC):
 			Calculator(),
 			Tell(),
 			Joke(),
-			TellStack(),
 			ShowTell()
 		]
 
-		self.version = [1, 6]
+		self.version = [2, 0]
 
 		self.start_messages = [
 			"Hello everyone!",
@@ -31,7 +34,7 @@ class Bot(IRC):
 			"Hi!",
 			"Olá!",
 			"Salut!",
-			"Bonjour à tous!"
+			"Bonjour!"
 		]
 
 		self.help_message = \
@@ -46,19 +49,43 @@ class Bot(IRC):
 			"olá", "olá!", "ola", "ola!",
 			"bonjour", "salut", "bonjour!", "salut!"
 		]
-		self.rand_greet_suff = ["it's nice to see you!", ":)", ":D", ""]
+		self.rand_greet_suff = ["it's nice to see you!", ":)", ":D", "", "hey, what's up?"]
 
 		self.questions = {
-			"how are you": ["I'm fine, thanks!", "All gears working!", "Not in the mood for bad mood!"],
+			"how are you": ["I'm fine, thanks!", "All gears working!"],
 			"who are you": ["I'm " + name + "! The UPBGE's Help Bot!", "I'm the UPBGE's Help Bot!"],
 			"what can you do": ["I can do a lot of things. Inform new users, tell jokes, calculate big numbers, just type !cmdhelp"],
 			"why did the chicken cross the road": ["To get to the other side.", "For fun.", "Out of common sense.", "You tell me.", "The chicken wanted to expose the myth of the road..."],
-			"what are you": ["I'm " + name + "! The UPBGE's Help Bot!", "I'm the UPBGE's Help Bot!", "I am a robot *beep* *boop*"]
+			"what are you": ["I'm " + name + "! The UPBGE's Help Bot!", "I'm the UPBGE's Help Bot!", "I am a human, and you are the bot."],
+			"are you ok": ["I'm fine now, thanks... :(", "I'm fine", "Yes", "My head hurts but I'm fine!", "If I was a human I would say no"]
 		}
 
 		self.show_startup_greeting = True
 
+		# load user database
+		if not os.path.exists("userdb.dat"):
+			open("userdb.dat", "wb").close()
+
+		try:
+			with open("userdb.dat", "rb") as f:
+				d = pickle.load(f)
+				self.user_database = d["db"]
+		except:
+			self.user_database = []
+		
 		self.__recon_cnt = 0
+
+	def get_user(self, name):
+		for user in self.user_database:
+			if user.name == name:
+				return user
+		return None
+
+	def get_user_names(self):
+		names = []
+		for user in self.user_database:
+			names.append(user.name)
+		return names
 
 	def register_command(self, cmd):
 		if cmd not in self.__commands:
@@ -137,6 +164,26 @@ class Bot(IRC):
 			elif IRC_CMD == "join":
 				for command in self.__commands:
 					command.on_join(SENDER, TARGET, self)
+				
+				## Register user if he's not already in the database
+				if SENDER != self.name:
+					if self.get_user(SENDER) is None:
+						new_usr = User(SENDER)
+						self.user_database.append(new_usr)
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET, " :Welcome, " + SENDER + "!"
+						)
+						
+						# And backup the data!
+						with open("userdb.dat", "wb") as f:
+							d = { "db": self.user_database }
+							pickle.dump(d, f)
+					else:
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET, " :Welcome back, " + SENDER + "!"
+						)
 			elif IRC_CMD == "privmsg":
 				MESSAGE = msg[2][1].strip(" \n\r")
 
@@ -195,6 +242,16 @@ class Bot(IRC):
 								TARGET,
 								" :\t" + command.string + ": " + command.description
 							)
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET,
+							" :\t!register: Register yourself in the user database"
+						)
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET,
+							" :\t!reps: Check your reputation points"
+						)
 					else:
 						self.send(
 							IRC_MSG_PRIVMSG,
@@ -216,7 +273,60 @@ class Bot(IRC):
 				elif lmsg == "!quit":
 					if SENDER == "TwisterGE":
 						self.running = False
+				elif lmsg == "!reps":
+					user = self.get_user(SENDER)
+					if user:
+						reps = user.reputation
+						if reps > 0:
+							self.send(
+								IRC_MSG_PRIVMSG,
+								TARGET, " :%s, you have %d reputation point%s." % (user.name, reps, "" if reps <= 1 else "s")
+							)
+						else:
+							self.send(
+								IRC_MSG_PRIVMSG,
+								TARGET, " :%s, you have no reputation points." % (user.name)
+							)
+				elif lmsg == "!register":
+					if self.get_user(SENDER) is None:
+						new_usr = User(SENDER)
+						self.user_database.append(new_usr)
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET, " :You are now registered, " + SENDER + "!"
+						)
+						
+						# And backup the data!
+						with open("userdb.dat", "wb") as f:
+							d = { "db": self.user_database }
+							pickle.dump(d, f)
+					else:
+						self.send(
+							IRC_MSG_PRIVMSG,
+							TARGET, " :You are already registered, " + SENDER + "..."
+						)
 				else:
+					## Check if someone gave reputation to a user
+					## The user is mentioned by adding @ before their name
+					## Like this, @user, thanks!
+					thanks = ["thanks", "thank you", "thx"]
+					for t in thanks:
+						if t in lmsg:
+							users = self.get_user_names()
+							if len(users) > 0:
+								rstr = r"\b(%s)\b" % "|".join(users)
+								mobj = re.search(rstr, MESSAGE)
+								if mobj:
+									user_name = mobj.group(0)
+									user = self.get_user(user_name)
+									if user:
+										user.reputation += 1
+										self.send(
+											IRC_MSG_PRIVMSG,
+											TARGET, " :%s earned reputation points!" % user_name
+										)
+							break
+					
 					## Checks if MESSAGE is a !command
 					## It must:
 					## - Start with a command
@@ -227,11 +337,9 @@ class Bot(IRC):
 							if " " not in lmsg:
 								wholecmd = lmsg
 
-							print("'%s'" % wholecmd)
 							if wholecmd == command.string:
-								print("ok")
 								if command.is_valid(MESSAGE):
-									command.execute(SENDER, TARGET, self, MESSAGE)
+									command.on_call(SENDER, TARGET, self, MESSAGE)
 								else:
 									self.send(
 										IRC_MSG_PRIVMSG,

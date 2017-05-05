@@ -1,6 +1,6 @@
 import sys
 from core.bot import *
-# from core.cmd import Cmd
+from core.command import parse_command
 
 bot = Bot(name="upBot", info="UPBGE's Bot")
 try:
@@ -8,5 +8,4 @@ try:
 except KeyboardInterrupt:
 	bot.quit()
 	sys.exit(0)
-c = Cmd()
-# c.parse_command("!tell user, \"Hello, this is a quoted string\", this is what hapens, in this")
+#parse_command("!tell user, \"a, b\", hi, 42, 3.14, 2+d")

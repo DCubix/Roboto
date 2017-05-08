@@ -180,11 +180,11 @@ class Bot(IRC):
 							IRC_MSG_PRIVMSG,
 							TARGET, " :Welcome, " + SENDER + "!"
 						)
-					else:
-						self.send(
-							IRC_MSG_PRIVMSG,
-							TARGET, " :Welcome back, " + SENDER + "!"
-						)
+# 					else:
+# 						self.send(
+# 							IRC_MSG_PRIVMSG,
+# 							TARGET, " :Welcome back, " + SENDER + "!"
+# 						)
 			elif IRC_CMD == "privmsg":
 				MESSAGE = msg[2][1].strip(" \n\r")
 
@@ -269,7 +269,7 @@ class Bot(IRC):
 					self.send(
 						IRC_MSG_PRIVMSG,
 						TARGET,
-						" :" + name + " is in version " + ".".join([str(i) for i in self.version])
+						" :" + name + " v" + ".".join([str(i) for i in self.version])
 					)
 				elif lmsg == "!quit":
 					if SENDER == "TwisterGE":
@@ -319,10 +319,10 @@ class Bot(IRC):
 										user = self.get_user(user_name)
 										if user:
 											user.reputation += 1
-											self.send(
-												IRC_MSG_PRIVMSG,
-												TARGET, " :%s earned reputation points!" % user_name
-											)
+# 											self.send(
+# 												IRC_MSG_PRIVMSG,
+# 												TARGET, " :%s earned reputation points!" % user_name
+# 											)
 							break
 					
 					## Checks if MESSAGE is a !command
@@ -344,7 +344,7 @@ class Bot(IRC):
 										TARGET,
 										" :" + SENDER + ", invalid command!"
 									)
-
+									break
 
 			time.sleep(1.0 / 30)
 

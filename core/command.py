@@ -76,8 +76,8 @@ class Command:
 		self.arg_count = 0
 
 	def is_valid(self, cmd):
-		_, args = parse_command(cmd)
-		return len(args) == self.arg_count
+		cmd_str, args = parse_command(cmd)
+		return len(args) == self.arg_count and cmd_str != self.string
 
 	def on_join(self, sender, target, bot):
 		pass

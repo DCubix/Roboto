@@ -51,17 +51,24 @@ def parse_command(cmd):
 			elif char.isdigit():
 				arg = ""
 				isFloat = False
+				isString = False
 				while char != ',' and char is not None:
 					arg += char
 					if char == '.':
 						isFloat = True
+					if char not in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.']:
+						isString = True  
 					char = sr.read()
 				arg = arg.strip(' ,')
 				
-				if isFloat:
-					args.append(float(arg))
+				if not isString:
+					if isFloat:
+						args.append(float(arg))
+					else:
+						args.append(int(arg))
 				else:
-					args.append(int(arg))
+					args.append(arg)
+
 	else:
 		cmd_str = cmd.strip(" \n\r")
 		args = []
@@ -77,7 +84,7 @@ class Command:
 
 	def is_valid(self, cmd):
 		cmd_str, args = parse_command(cmd)
-		return len(args) == self.arg_count and cmd_str != self.string
+		return len(args) == self.arg_count and cmd_str == self.string
 
 	def on_join(self, sender, target, bot):
 		pass
